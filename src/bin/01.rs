@@ -34,7 +34,44 @@ pub fn part_one(input: &str) -> Option<u64> {
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    None
+    let (_, values) = parse_input(input).unwrap();
+
+    let mut zeros = 0;
+    let mut position = 50;
+    let mut previous_position = position;
+
+    for (direction, distance) in values {
+        if distance > 100 {
+            let full_cycles = distance / 100;
+            zeros += full_cycles as u64;
+        }
+        let distance = distance % 100;
+
+        match direction {
+            'L' => position = position - distance as i32,
+            'R' => position = position + distance as i32,
+            _ => unreachable!(),
+        }
+
+        if position == 0 {
+            zeros += 1;
+        }
+
+        if position < 0 {
+            position += 100;
+            if previous_position > 0 {
+                zeros += 1;
+            }
+        }
+
+        if position >= 100 {
+            position -= 100;
+            zeros += 1;
+        }
+        previous_position = position;
+    }
+
+    Some(zeros)
 }
 
 #[cfg(test)]
@@ -50,6 +87,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(6));
     }
 }
