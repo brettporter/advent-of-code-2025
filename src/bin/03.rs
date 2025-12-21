@@ -60,19 +60,32 @@ pub fn part_two(input: &str) -> Option<u64> {
 fn find_max_joltage(bank: &[u8], req_len: usize) -> Option<u64> {
     let mut max_joltage = None;
 
-    for i in 0..=bank.len() - req_len {
-        let d1 = (bank[i] - b'0') as u64;
-        if req_len > 1 {
-            if let Some(rem) = find_max_joltage(&bank[i + 1..], req_len - 1) {
-                let res = 10u64.pow(req_len as u32 - 1) * d1 + rem;
-                if max_joltage.is_none() || res > max_joltage.unwrap() {
-                    max_joltage = Some(res);
-                }
-            }
-        } else {
-            let res = d1;
+    if req_len == bank.len() {
+        return Some(bank.iter().fold(0, |acc, e| acc * 10 + (e - b'0') as u64));
+    }
+
+    let mut choices: Vec<(usize, &u8)> =
+        bank[0..=bank.len() - req_len].iter().enumerate().collect();
+    choices.sort_by(|x, y| {
+        let c = y.1.cmp(&x.1);
+        match c {
+            // prefer first index to get largest possible number after that
+            std::cmp::Ordering::Equal => x.0.cmp(&y.0),
+            _ => c,
+        }
+    });
+
+    for (i, b) in choices {
+        let d1 = (b - b'0') as u64;
+        if req_len == 1 {
+            return Some(d1);
+        }
+
+        if let Some(rem) = find_max_joltage(&bank[i + 1..], req_len - 1) {
+            let res = 10u64.pow(req_len as u32 - 1) * d1 + rem;
             if max_joltage.is_none() || res > max_joltage.unwrap() {
                 max_joltage = Some(res);
+                break;
             }
         }
     }
