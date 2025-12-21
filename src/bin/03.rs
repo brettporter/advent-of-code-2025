@@ -44,7 +44,40 @@ fn parse_input(input: &str) -> IResult<&str, Vec<&str>> {
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    None
+    let (_, banks) = parse_input(input).unwrap();
+
+    let mut total = 0;
+
+    for bank in banks {
+        if let Some(result) = find_max_joltage(bank.as_bytes(), 12) {
+            total += result;
+        }
+    }
+
+    Some(total)
+}
+
+fn find_max_joltage(bank: &[u8], req_len: usize) -> Option<u64> {
+    let mut max_joltage = None;
+
+    for i in 0..=bank.len() - req_len {
+        let d1 = (bank[i] - b'0') as u64;
+        if req_len > 1 {
+            if let Some(rem) = find_max_joltage(&bank[i + 1..], req_len - 1) {
+                let res = 10u64.pow(req_len as u32 - 1) * d1 + rem;
+                if max_joltage.is_none() || res > max_joltage.unwrap() {
+                    max_joltage = Some(res);
+                }
+            }
+        } else {
+            let res = d1;
+            if max_joltage.is_none() || res > max_joltage.unwrap() {
+                max_joltage = Some(res);
+            }
+        }
+    }
+
+    max_joltage
 }
 
 #[cfg(test)]
@@ -60,6 +93,14 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(3121910778619));
+    }
+
+    #[test]
+    fn test_joltage() {
+        assert_eq!(
+            find_max_joltage("234234234234278".as_bytes(), 12),
+            Some(434234234278)
+        );
     }
 }
