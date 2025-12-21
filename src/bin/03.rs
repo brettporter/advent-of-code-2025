@@ -20,7 +20,14 @@ pub fn part_one(input: &str) -> Option<u64> {
         let (idx, max_digit) = bank_not_last
             .iter()
             .enumerate()
-            .max_by(|x, y| x.1.cmp(&y.1))
+            .max_by(|x, y| {
+                let c = x.1.cmp(&y.1);
+                match c {
+                    // prefer first index to get largest possible number after that
+                    std::cmp::Ordering::Equal => y.0.cmp(&x.0),
+                    _ => c,
+                }
+            })
             .unwrap();
         let max_second_digit = b[idx + 1..].iter().max().unwrap();
         let result = (max_digit - b'0') * 10 + (max_second_digit - b'0');
