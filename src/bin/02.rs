@@ -57,6 +57,10 @@ pub fn part_two(input: &str) -> Option<usize> {
         let mut current = low;
         while current < high {
             let num_digits = num_digits(current);
+            if num_digits < 2 {
+                current = 10usize.pow(num_digits);
+                continue;
+            }
 
             let mut factors = factor(num_digits as i64);
             factors.push(1);
