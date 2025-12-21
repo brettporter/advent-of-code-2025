@@ -1,3 +1,5 @@
+use factor::factor::factor;
+use fxhash::FxHashSet;
 use nom::{
     IResult, Parser, bytes::complete::tag, character::complete::usize, multi::separated_list1,
     sequence::separated_pair,
@@ -46,8 +48,41 @@ fn num_digits(current: usize) -> u32 {
     current.to_string().len().try_into().unwrap()
 }
 
-pub fn part_two(input: &str) -> Option<u64> {
-    None
+pub fn part_two(input: &str) -> Option<usize> {
+    let (_, ranges) = parse_input(input).unwrap();
+
+    let mut invalid_ids = FxHashSet::default();
+
+    for (low, high) in ranges {
+        let mut current = low;
+        while current < high {
+            let num_digits = num_digits(current);
+
+            let mut factors = factor(num_digits as i64);
+            factors.push(1);
+            // use all values as the lengths of repeatable segments repeat them (nd / len) times
+
+            for rpt_len in factors {
+                let div = 10usize.pow(num_digits - rpt_len as u32);
+                let next = 10usize.pow(rpt_len as u32);
+                let top = current / div;
+                for i in top..next {
+                    let num = (0..=(num_digits / rpt_len as u32) as usize)
+                        .reduce(|acc, _| acc * next + i)
+                        .unwrap();
+                    if num > high {
+                        break;
+                    }
+                    if num >= low {
+                        invalid_ids.insert(num);
+                    }
+                }
+            }
+            current = 10usize.pow(num_digits);
+        }
+    }
+
+    Some(invalid_ids.iter().sum())
 }
 
 #[cfg(test)]
@@ -63,6 +98,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(4174379265));
     }
 }
