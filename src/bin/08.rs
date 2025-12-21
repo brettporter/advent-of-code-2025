@@ -11,7 +11,7 @@ use nom::{
 
 advent_of_code::solution!(8);
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 struct Point {
     x: i64,
     y: i64,
@@ -40,7 +40,7 @@ fn parse_input(input: &str) -> IResult<&str, Vec<Vec<i64>>> {
     parser.parse(input)
 }
 
-fn find_shortest_distances(locations: &Vec<Vec<i64>>) -> Vec<(Point, Point, i64)> {
+fn find_shortest_distances(locations: &Vec<Vec<i64>>, max: usize) -> Vec<(Point, Point, i64)> {
     locations
         .iter()
         .combinations(2)
@@ -51,7 +51,7 @@ fn find_shortest_distances(locations: &Vec<Vec<i64>>) -> Vec<(Point, Point, i64)
             (p1, p2, distance)
         })
         .sorted_by_key(|&(_, _, distance)| distance)
-        // .take(max)
+        .take(max)
         .collect()
 }
 
@@ -62,33 +62,31 @@ pub fn part_one(input: &str) -> Option<u64> {
 fn part_one_max(input: &str, max: usize) -> Option<u64> {
     let (_, locations) = parse_input(input).unwrap();
 
-    let shortest_distance_pairs = find_shortest_distances(&locations);
+    let shortest_distance_pairs = find_shortest_distances(&locations, max);
 
     let mut circuits: Vec<FxHashSet<Point>> = Vec::new();
-    let mut connections = 0;
 
     for (p1, p2, _) in shortest_distance_pairs {
-        if let Some(c) = circuits
-            .iter_mut()
-            .find(|c| c.contains(&p1) || c.contains(&p2))
-        {
-            if !c.contains(&p1) {
-                c.insert(p1);
-                connections += 1;
-            } else if !c.contains(&p2) {
-                c.insert(p2);
-                connections += 1;
+        let c1 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p1));
+        let c2 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p2));
+
+        if let Some((idx1, c)) = c1 {
+            if let Some((idx2, other)) = c2 {
+                if idx1 != idx2 {
+                    // combine circuits
+                    circuits[idx1] = FxHashSet::from_iter(c.union(other).map(|&x| x));
+                    circuits.remove(idx2);
+                }
+            } else {
+                circuits.get_mut(idx1).unwrap().insert(p2);
             }
         } else {
-            let mut c = FxHashSet::default();
-            c.insert(p1);
-            c.insert(p2);
-            connections += 1;
-            circuits.push(c);
-        }
-
-        if connections == max {
-            break;
+            if let Some((idx2, _)) = c2 {
+                circuits.get_mut(idx2).unwrap().insert(p1);
+            } else {
+                let c = FxHashSet::from_iter(vec![p1, p2]);
+                circuits.push(c);
+            }
         }
     }
 
