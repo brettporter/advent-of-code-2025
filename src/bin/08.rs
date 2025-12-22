@@ -64,33 +64,8 @@ pub fn part_one(input: &str) -> Option<u64> {
 fn part_one_max(input: &str, max: usize) -> Option<u64> {
     let (_, locations) = parse_input(input).unwrap();
 
-    let shortest_distance_pairs = find_shortest_distances(&locations, max);
-
     let mut circuits: Vec<FxHashSet<Point>> = Vec::new();
-
-    for (p1, p2, _) in shortest_distance_pairs {
-        let c1 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p1));
-        let c2 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p2));
-
-        if let Some((idx1, c)) = c1 {
-            if let Some((idx2, other)) = c2 {
-                if idx1 != idx2 {
-                    // combine circuits
-                    circuits[idx1] = FxHashSet::from_iter(c.union(other).map(|&x| x));
-                    circuits.remove(idx2);
-                }
-            } else {
-                circuits.get_mut(idx1).unwrap().insert(p2);
-            }
-        } else {
-            if let Some((idx2, _)) = c2 {
-                circuits.get_mut(idx2).unwrap().insert(p1);
-            } else {
-                let c = FxHashSet::from_iter(vec![p1, p2]);
-                circuits.push(c);
-            }
-        }
-    }
+    build_circuits(&locations, &mut circuits, max);
 
     circuits
         .iter()
@@ -101,12 +76,12 @@ fn part_one_max(input: &str, max: usize) -> Option<u64> {
         .reduce(|acc, e| acc * e)
 }
 
-pub fn part_two(input: &str) -> Option<u64> {
-    let (_, locations) = parse_input(input).unwrap();
-
-    let shortest_distance_pairs = find_shortest_distances(&locations, usize::MAX);
-
-    let mut circuits: Vec<FxHashSet<Point>> = Vec::new();
+fn build_circuits(
+    locations: &Vec<Vec<i64>>,
+    circuits: &mut Vec<FxHashSet<Point>>,
+    max: usize,
+) -> Option<(Point, Point)> {
+    let shortest_distance_pairs = find_shortest_distances(&locations, max);
 
     for (p1, p2, _) in shortest_distance_pairs {
         let c1 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p1));
@@ -131,11 +106,22 @@ pub fn part_two(input: &str) -> Option<u64> {
             }
         }
         if circuits.len() == 1 && circuits.first()?.len() == locations.len() {
-            return Some((p2.x * p1.x) as u64);
+            return Some((p1, p2));
         }
     }
+    None
+}
 
-    unreachable!()
+pub fn part_two(input: &str) -> Option<u64> {
+    let (_, locations) = parse_input(input).unwrap();
+
+    let mut circuits: Vec<FxHashSet<Point>> = Vec::new();
+
+    if let Some((last_p1, last_p2)) = build_circuits(&locations, &mut circuits, usize::MAX) {
+        Some((last_p2.x * last_p1.x) as u64)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
