@@ -1,3 +1,5 @@
+use std::usize;
+
 use fxhash::FxHashSet;
 use itertools::Itertools;
 use nom::{
@@ -100,7 +102,40 @@ fn part_one_max(input: &str, max: usize) -> Option<u64> {
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    None
+    let (_, locations) = parse_input(input).unwrap();
+
+    let shortest_distance_pairs = find_shortest_distances(&locations, usize::MAX);
+
+    let mut circuits: Vec<FxHashSet<Point>> = Vec::new();
+
+    for (p1, p2, _) in shortest_distance_pairs {
+        let c1 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p1));
+        let c2 = circuits.iter().enumerate().find(|(_, c)| c.contains(&p2));
+
+        if let Some((idx1, c)) = c1 {
+            if let Some((idx2, other)) = c2 {
+                if idx1 != idx2 {
+                    // combine circuits
+                    circuits[idx1] = FxHashSet::from_iter(c.union(other).map(|&x| x));
+                    circuits.remove(idx2);
+                }
+            } else {
+                circuits.get_mut(idx1).unwrap().insert(p2);
+            }
+        } else {
+            if let Some((idx2, _)) = c2 {
+                circuits.get_mut(idx2).unwrap().insert(p1);
+            } else {
+                let c = FxHashSet::from_iter(vec![p1, p2]);
+                circuits.push(c);
+            }
+        }
+        if circuits.len() == 1 && circuits.first()?.len() == locations.len() {
+            return Some((p2.x * p1.x) as u64);
+        }
+    }
+
+    unreachable!()
 }
 
 #[cfg(test)]
@@ -116,6 +151,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(25272));
     }
 }
