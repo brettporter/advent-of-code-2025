@@ -1,3 +1,5 @@
+use std::cmp::{max, min};
+
 use itertools::Itertools;
 use nom::{
     IResult, Parser,
@@ -30,13 +32,9 @@ pub fn part_one(input: &str) -> Option<i64> {
         .max()
 }
 
-fn determinant(p1: &(i64, i64), p2: &(i64, i64)) -> i64 {
-    p1.0 * p2.1 - p2.0 * p1.1
-}
-
 fn is_inside_polygon(tiles: &Vec<(i64, i64)>, p: &(i64, i64)) -> bool {
-    let origin = (0, 0);
-
+    // ray cast from (0, y) -> (x, y)
+    // succeed if a) this point is on a line; b) ray casting intersects odd numbers of lines
     let mut intersections = 0;
     for (idx, next) in tiles.iter().enumerate() {
         let prev = if idx > 0 {
@@ -45,27 +43,41 @@ fn is_inside_polygon(tiles: &Vec<(i64, i64)>, p: &(i64, i64)) -> bool {
             tiles.last().unwrap()
         };
 
-        let line1_dx = prev.0 - next.0;
-        let line1_dy = prev.1 - next.1;
-        // compare to (0, 0) for ray cast
-        let line2_dx = p.0;
-        let line2_dy = p.1;
+        if prev.1 == next.1 {
+            // horizontal
+            let y = prev.1;
+            let (x1, x2) = (min(prev.0, next.0), max(prev.0, next.0));
+            if p.1 == y {
+                // check if point is on the line
+                if x1 <= p.0 && p.0 <= x2 {
+                    return true;
+                }
+            }
 
-        // Cramer's rule
-        let divisor = determinant(&(line1_dx, line2_dx), &(line1_dy, line2_dy));
-
-        let d = (determinant(prev, next), determinant(p, &origin));
-        let x = determinant(&d, &(line1_dx, line2_dx)) / divisor;
-        let y = determinant(&d, &(line1_dy, line2_dy)) / divisor;
-
-        if x >= prev.0 && x <= next.0 || x >= next.0 && x <= prev.0 {
-            if y >= prev.1 && y <= next.1 || y >= next.1 && y <= prev.1 {
+            // check if point is beyond the line
+            if p.0 > x2 {
                 intersections += 1;
+            }
+        } else {
+            // vertical
+            let x = prev.0;
+            let (y1, y2) = (min(prev.1, next.1), max(prev.1, next.1));
+
+            // check if point is on the line
+            if p.0 == x {
+                if y1 <= p.1 && p.1 <= y2 {
+                    return true;
+                }
+            }
+
+            // check if a ray intersects - vertical lines crossed
+            if x < p.0 {
+                if y1 <= p.1 && p.1 <= y2 {
+                    intersections += 1;
+                }
             }
         }
     }
-    // odd number means inside the polygon - ray casting
-    println!("test {:?} => {}", p, intersections);
     intersections % 2 == 1
 }
 
@@ -76,14 +88,12 @@ pub fn part_two(input: &str) -> Option<i64> {
         .iter()
         .combinations(2)
         .filter(|v| {
-            [
-                (v[0].0, v[0].1),
-                (v[1].0, v[0].1),
-                (v[0].0, v[1].1),
-                (v[1].0, v[1].1),
-            ]
-            .iter()
-            .all(|p| is_inside_polygon(&tiles, p))
+            let (x1, y1) = (v[0].0, v[0].1);
+            let (x2, y2) = (v[1].0, v[1].1);
+            // rectangle for these two points
+            [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
+                .iter()
+                .all(|p| is_inside_polygon(&tiles, p))
         })
         .map(|v| {
             let (x1, y1) = v[0];
