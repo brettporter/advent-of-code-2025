@@ -76,7 +76,58 @@ fn calculate_min_presses(target_state: usize, buttons: &[usize]) -> u64 {
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    None
+    let (_, machines) = parse_input(input).unwrap();
+
+    let mut total = 0;
+    for (_, wires, joltage_requirements) in machines {
+        total += calculate_min_joltage_presses(&joltage_requirements, &wires);
+    }
+
+    Some(total)
+}
+
+fn calculate_min_joltage_presses(joltage_requirements: &Vec<u64>, buttons: &[Vec<u64>]) -> u64 {
+    let mut sequences = FxHashMap::from_iter(buttons.iter().map(|v| {
+        let mut result = vec![0; joltage_requirements.len()];
+        for &idx in v {
+            result[idx as usize] = 1;
+        }
+
+        (result, 1)
+    }));
+
+    loop {
+        let mut new_sequences = sequences.clone();
+        for (result, num_presses) in &sequences {
+            for (s_result, s_num_presses) in &sequences {
+                let new_result: Vec<u64> = result
+                    .iter()
+                    .enumerate()
+                    .map(|(i, r)| s_result[i] + r)
+                    .collect();
+                let new_num_presses = num_presses + s_num_presses;
+
+                if new_result
+                    .iter()
+                    .enumerate()
+                    .all(|(i, v)| *v <= joltage_requirements[i])
+                {
+                    if let Some(v) = new_sequences.get(&new_result) {
+                        if *v > new_num_presses {
+                            new_sequences.insert(new_result, new_num_presses);
+                        }
+                    } else {
+                        new_sequences.insert(new_result, new_num_presses);
+                    }
+                }
+            }
+        }
+        if let Some(r) = new_sequences.get(joltage_requirements) {
+            return *r;
+        }
+
+        sequences = new_sequences;
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +143,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(33));
     }
 }
