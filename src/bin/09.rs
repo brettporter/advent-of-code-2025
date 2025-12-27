@@ -64,13 +64,13 @@ fn is_inside_polygon(tiles: &[(i64, i64)], (x1, y1): (i64, i64), (x2, y2): (i64,
                 }
             }
 
-            if t_x1 <= l_x1 && l_x1 <= t_x2 {
-                if l_y1 >= t_y {
-                    // println!("U -> {l_x1}, {l_y1} below ({t_x1}-{t_x2}, {t_y})");
+            if t_x1 <= x1 && x1 <= t_x2 {
+                if y1 >= t_y {
+                    // println!("U -> {x1}, {y1} below ({t_x1}-{t_x2}, {t_y})");
                     up = true;
                 }
-                if l_y1 <= t_y {
-                    // println!("D -> {l_x1}, {l_y1} above ({t_x1}-{t_x2}, {t_y})");
+                if y1 <= t_y {
+                    // println!("D -> {x1}, {y1} above ({t_x1}-{t_x2}, {t_y})");
                     down = true;
                 }
             }
@@ -90,13 +90,13 @@ fn is_inside_polygon(tiles: &[(i64, i64)], (x1, y1): (i64, i64), (x2, y2): (i64,
                 }
             }
 
-            if t_y1 <= l_y1 && l_y1 <= t_y2 {
-                if l_x1 >= t_x {
-                    // println!("L -> {l_x1}, {l_y1} right of ({t_x}, {t_y1}-{t_y2})");
+            if t_y1 <= y1 && y1 <= t_y2 {
+                if x1 >= t_x {
+                    // println!("L -> {x1}, {y1} right of ({t_x}, {t_y1}-{t_y2})");
                     left = true;
                 }
-                if l_x1 <= t_x {
-                    // println!("R -> {l_x1}, {l_y1} left of ({t_x}, {t_y1}-{t_y2})");
+                if x1 <= t_x {
+                    // println!("R -> {x1}, {y1} left of ({t_x}, {t_y1}-{t_y2})");
                     right = true;
                 }
             }
@@ -162,5 +162,6 @@ mod tests {
         let input = &advent_of_code::template::read_file("inputs", DAY);
         let (_, tiles) = parse_input(input).unwrap();
         assert!(!is_inside_polygon(&tiles, (5318, 66562), (5318, 33566)));
+        assert!(!is_inside_polygon(&tiles, (98418, 98471), (98418, 50192)));
     }
 }
