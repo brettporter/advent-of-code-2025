@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use fxhash::FxHashMap;
 use nom::{
     IResult, Parser,
     bytes::complete::tag,
@@ -50,7 +49,7 @@ pub fn part_one(input: &str) -> Option<u64> {
 
 fn calculate_min_presses(target_state: usize, buttons: &[usize]) -> u64 {
     // Not supporting one button press here
-    let mut sequences: HashMap<usize, u64> = HashMap::from_iter(buttons.iter().map(|&v| (v, 1)));
+    let mut sequences = FxHashMap::from_iter(buttons.iter().map(|&v| (v, 1)));
     loop {
         let mut new_sequences = sequences.clone();
         for (&result, &num_presses) in &sequences {
@@ -58,6 +57,7 @@ fn calculate_min_presses(target_state: usize, buttons: &[usize]) -> u64 {
                 let new_result = result ^ s_result;
                 let new_num_presses = num_presses + s_num_presses;
 
+                // TODO: consider aborting early but requires map to be sorted - test if that is faster or not
                 if let Some(v) = new_sequences.get(&new_result) {
                     if *v > new_num_presses {
                         new_sequences.insert(new_result, new_num_presses);
