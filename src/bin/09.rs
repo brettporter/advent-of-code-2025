@@ -32,14 +32,16 @@ pub fn part_one(input: &str) -> Option<i64> {
         .max()
 }
 
-fn is_inside_polygon(tiles: &[(i64, i64)], (p_x, p_y): (i64, i64)) -> bool {
-    // simplified version of point-in-polygon algorithm based on assumption of horizontal and vertical lines
-    // and no internal gaps. Usually ray casting would be an odd number of intersections from a point outside
-    // the polygon. However, we can just test that if there are lines in every direction from the point, it
-    // is inside
+fn is_inside_polygon(tiles: &[(i64, i64)], (x1, y1): (i64, i64), (x2, y2): (i64, i64)) -> bool {
+    let l_horiz = y1 == y2;
+    let l_x1 = min(x1, x2);
+    let l_x2 = max(x1, x2);
+    let l_y1 = min(y1, y2);
+    let l_y2 = max(y1, y2);
 
-    // Iterate all lines on the polygon
-    let (mut left, mut right, mut up, mut down) = (false, false, false, false);
+    let (mut up, mut down, mut left, mut right) = (false, false, false, false);
+
+    // Iterate all lines on the polygon and check they don't cross any lines internally
     for (idx, &(next_x, next_y)) in tiles.iter().enumerate() {
         let &(prev_x, prev_y) = if idx > 0 {
             &tiles[idx - 1]
@@ -48,42 +50,66 @@ fn is_inside_polygon(tiles: &[(i64, i64)], (p_x, p_y): (i64, i64)) -> bool {
         };
 
         if prev_y == next_y {
-            // horizontal - test up / down
+            // horizontal
+            let t_y = prev_y;
+            let (t_x1, t_x2) = (min(prev_x, next_x), max(prev_x, next_x));
 
-            let (x1, x2) = (min(prev_x, next_x), max(prev_x, next_x));
-            if x1 <= p_x && p_x <= x2 {
-                if p_y >= prev_y {
-                    println!("U -> {p_x}, {p_y} below ({x1}-{x2}, {prev_y})");
+            if !l_horiz {
+                let line_x = l_x1;
+                if l_y1 < t_y && t_y < l_y2 && t_x1 < line_x && line_x < t_x2 {
+                    // println!(
+                    //     "Intersection between candidate line ({l_x1}, {l_y1}) - ({l_x2}, {l_y2}) and polygon line ({t_x1}, {t_y}) - ({t_x2}, {t_y}) "
+                    // );
+                    return false;
+                }
+            }
+
+            if t_x1 <= l_x1 && l_x1 <= t_x2 {
+                if l_y1 >= t_y {
+                    // println!("U -> {l_x1}, {l_y1} below ({t_x1}-{t_x2}, {t_y})");
                     up = true;
                 }
-                if p_y <= prev_y {
-                    println!("D -> {p_x}, {p_y} above ({x1}-{x2}, {prev_y})");
+                if l_y1 <= t_y {
+                    // println!("D -> {l_x1}, {l_y1} above ({t_x1}-{t_x2}, {t_y})");
                     down = true;
                 }
             }
         }
 
         if prev_x == next_x {
-            // vertical - test left/right
+            // vertical
+            let t_x = prev_x;
+            let (t_y1, t_y2) = (min(prev_y, next_y), max(prev_y, next_y));
+            if l_horiz {
+                let line_y = l_y1;
+                if l_x1 < t_x && t_x < l_x2 && t_y1 < line_y && line_y < t_y2 {
+                    // println!(
+                    //     "Intersection between candidate line ({l_x1}, {l_y1}) - ({l_x2}, {l_y2}) and polygon line ({t_x}, {t_y1}) - ({t_x}, {t_y2}) "
+                    // );
+                    return false;
+                }
+            }
 
-            let (y1, y2) = (min(prev_y, next_y), max(prev_y, next_y));
-            if y1 <= p_y && p_y <= y2 {
-                if p_x >= prev_x {
-                    println!("L -> {p_x}, {p_y} right of ({prev_x}, {y1}-{y2})");
+            if t_y1 <= l_y1 && l_y1 <= t_y2 {
+                if l_x1 >= t_x {
+                    // println!("L -> {l_x1}, {l_y1} right of ({t_x}, {t_y1}-{t_y2})");
                     left = true;
                 }
-                if p_x <= prev_x {
-                    println!("R -> {p_x}, {p_y} left of ({prev_x}, {y1}-{y2})");
+                if l_x1 <= t_x {
+                    // println!("R -> {l_x1}, {l_y1} left of ({t_x}, {t_y1}-{t_y2})");
                     right = true;
                 }
             }
         }
-        if left && right && up && down {
-            return true;
-        }
     }
-    println!("Failed on point ({p_x}, {p_y}) - L {left} R {right} U {up} D {down}");
-    false
+    // println!("No intersections for candidate line ({l_x1}, {l_y1}) - ({l_x2}, {l_y2})");
+
+    if !left || !right || !up || !down {
+        // println!("Candidate point outside polygon ({l_x1}, {l_y1})");
+        return false;
+    }
+
+    true
 }
 
 pub fn part_two(input: &str) -> Option<i64> {
@@ -97,14 +123,18 @@ pub fn part_two(input: &str) -> Option<i64> {
             let &(x2, y2) = v[1];
             let h = (y2 - y1).abs() + 1;
             let w = (x2 - x1).abs() + 1;
-            ((x1, y2), (x2, y1), w * h)
+            ((x1, y1), (x2, y2), w * h)
         })
         .sorted_by(|(_, _, a), (_, _, b)| b.cmp(&a))
         .collect();
 
     for ((x1, y1), (x2, y2), a) in sorted {
-        println!("Testing rectangle ({x1}, {y1}), ({x2}, {y2}) size {a}");
-        if is_inside_polygon(&tiles, (x1, y1)) && is_inside_polygon(&tiles, (x2, y2)) {
+        // println!("Testing rectangle ({x1}, {y1}), ({x2}, {y2}) size {a}");
+        if is_inside_polygon(&tiles, (x1, y1), (x1, y2))
+            && is_inside_polygon(&tiles, (x1, y2), (x2, y2))
+            && is_inside_polygon(&tiles, (x2, y2), (x2, y1))
+            && is_inside_polygon(&tiles, (x2, y1), (x1, y1))
+        {
             return Some(a);
         }
     }
@@ -125,5 +155,12 @@ mod tests {
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
         assert_eq!(result, Some(24));
+    }
+
+    #[test]
+    fn test_input_line() {
+        let input = &advent_of_code::template::read_file("inputs", DAY);
+        let (_, tiles) = parse_input(input).unwrap();
+        assert!(!is_inside_polygon(&tiles, (5318, 66562), (5318, 33566)));
     }
 }
