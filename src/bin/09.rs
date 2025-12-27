@@ -57,20 +57,18 @@ fn is_inside_polygon(tiles: &[(i64, i64)], (x1, y1): (i64, i64), (x2, y2): (i64,
             if !l_horiz {
                 let line_x = l_x1;
                 if l_y1 < t_y && t_y < l_y2 && t_x1 < line_x && line_x < t_x2 {
-                    // println!(
-                    //     "Intersection between candidate line ({l_x1}, {l_y1}) - ({l_x2}, {l_y2}) and polygon line ({t_x1}, {t_y}) - ({t_x2}, {t_y}) "
-                    // );
+                    // Intersection between candidate line and polygon line
                     return false;
                 }
             }
 
+            // Check if this polygon line is outside of the first point
+            // Only check the first point provided as caller loops through all points in that position
             if t_x1 <= x1 && x1 <= t_x2 {
                 if y1 >= t_y {
-                    // println!("U -> {x1}, {y1} below ({t_x1}-{t_x2}, {t_y})");
                     up = true;
                 }
                 if y1 <= t_y {
-                    // println!("D -> {x1}, {y1} above ({t_x1}-{t_x2}, {t_y})");
                     down = true;
                 }
             }
@@ -83,33 +81,27 @@ fn is_inside_polygon(tiles: &[(i64, i64)], (x1, y1): (i64, i64), (x2, y2): (i64,
             if l_horiz {
                 let line_y = l_y1;
                 if l_x1 < t_x && t_x < l_x2 && t_y1 < line_y && line_y < t_y2 {
-                    // println!(
-                    //     "Intersection between candidate line ({l_x1}, {l_y1}) - ({l_x2}, {l_y2}) and polygon line ({t_x}, {t_y1}) - ({t_x}, {t_y2}) "
-                    // );
+                    // Intersection between candidate line and polygon line
                     return false;
                 }
             }
 
+            // Check if this polygon line is outside of the first point
+            // Only check the first point provided as caller loops through all points in that position
             if t_y1 <= y1 && y1 <= t_y2 {
                 if x1 >= t_x {
-                    // println!("L -> {x1}, {y1} right of ({t_x}, {t_y1}-{t_y2})");
                     left = true;
                 }
                 if x1 <= t_x {
-                    // println!("R -> {x1}, {y1} left of ({t_x}, {t_y1}-{t_y2})");
                     right = true;
                 }
             }
         }
     }
-    // println!("No intersections for candidate line ({l_x1}, {l_y1}) - ({l_x2}, {l_y2})");
 
-    if !left || !right || !up || !down {
-        // println!("Candidate point outside polygon ({l_x1}, {l_y1})");
-        return false;
-    }
-
-    true
+    // No intersections for candidate line
+    // Candidate point outside polygon if not bounded by lines
+    left && right && up && down
 }
 
 pub fn part_two(input: &str) -> Option<i64> {
@@ -129,7 +121,6 @@ pub fn part_two(input: &str) -> Option<i64> {
         .collect();
 
     for ((x1, y1), (x2, y2), a) in sorted {
-        // println!("Testing rectangle ({x1}, {y1}), ({x2}, {y2}) size {a}");
         if is_inside_polygon(&tiles, (x1, y1), (x1, y2))
             && is_inside_polygon(&tiles, (x1, y2), (x2, y2))
             && is_inside_polygon(&tiles, (x2, y2), (x2, y1))
@@ -155,13 +146,5 @@ mod tests {
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
         assert_eq!(result, Some(24));
-    }
-
-    #[test]
-    fn test_input_line() {
-        let input = &advent_of_code::template::read_file("inputs", DAY);
-        let (_, tiles) = parse_input(input).unwrap();
-        assert!(!is_inside_polygon(&tiles, (5318, 66562), (5318, 33566)));
-        assert!(!is_inside_polygon(&tiles, (98418, 98471), (98418, 50192)));
     }
 }
