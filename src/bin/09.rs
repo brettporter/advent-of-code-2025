@@ -32,10 +32,18 @@ pub fn part_one(input: &str) -> Option<i64> {
         .max()
 }
 
-fn is_inside_polygon(tiles: &Vec<(i64, i64)>, p: &(i64, i64)) -> bool {
-    // ray cast from (0, y) -> (x, y)
-    // succeed if a) this point is on a line; b) ray casting intersects odd numbers of lines
-    let mut intersections = 0;
+fn intersects_line(tiles: &[(i64, i64)], p1: (i64, i64), p2: (i64, i64)) -> bool {
+    let horiz = p1.1 == p2.1;
+
+    let mut adjust_p1 = p1;
+    let mut adjust_p2 = p2;
+    for (idx, next) in tiles.iter().enumerate() {
+        // TODO: change p1 to be the segment not on the line if any end matches
+    }
+
+    let p1 = adjust_p1;
+    let p2 = adjust_p2;
+
     for (idx, next) in tiles.iter().enumerate() {
         let prev = if idx > 0 {
             &tiles[idx - 1]
@@ -43,66 +51,82 @@ fn is_inside_polygon(tiles: &Vec<(i64, i64)>, p: &(i64, i64)) -> bool {
             tiles.last().unwrap()
         };
 
-        if prev.1 == next.1 {
+        // getting caught here where lines intersect only at the corners of the polygon
+        // I think we need to remove full line segments first
+
+        if prev.1 == next.1 && !horiz {
             // horizontal
             let y = prev.1;
             let (x1, x2) = (min(prev.0, next.0), max(prev.0, next.0));
-            if p.1 == y {
-                // check if point is on the line
-                if x1 <= p.0 && p.0 <= x2 {
+            let (line_y1, line_y2) = (min(p1.1, p2.1), max(p2.1, p1.1));
+            let line_x = p1.0;
+
+            if x1 <= line_x && line_x <= x2 && line_y1 <= y && y <= line_y2 {
+                // ignore if it's an origin point
+                if line_x != p1.0 || y != p1.1 {
+                    println!(
+                        "intersect horiz {:?} {:?} :: {:?} {:?} @ {line_x} {y}",
+                        prev, next, p1, p2
+                    );
                     return true;
                 }
             }
+        }
 
-            // check if point is beyond the line
-            if p.0 > x2 {
-                intersections += 1;
-            }
-        } else {
+        if prev.0 == next.0 && horiz {
             // vertical
             let x = prev.0;
             let (y1, y2) = (min(prev.1, next.1), max(prev.1, next.1));
+            let (line_x1, line_x2) = (min(p1.0, p2.0), max(p2.0, p1.0));
+            let line_y = p1.1;
 
-            // check if point is on the line
-            if p.0 == x {
-                if y1 <= p.1 && p.1 <= y2 {
+            if y1 <= line_y && line_y <= y2 && line_x1 <= x && x <= line_x2 {
+                // ignore if it's an origin point
+                if x != p1.0 || line_y != p1.1 {
+                    println!(
+                        "intersect vert {:?} {:?} :: {:?} {:?} @ {x} {line_y}",
+                        prev, next, p1, p2
+                    );
                     return true;
-                }
-            }
-
-            // check if a ray intersects - vertical lines crossed
-            if x < p.0 {
-                if y1 <= p.1 && p.1 <= y2 {
-                    intersections += 1;
                 }
             }
         }
     }
-    intersections % 2 == 1
+    false
 }
 
 pub fn part_two(input: &str) -> Option<i64> {
     let (_, tiles) = parse_input(input).unwrap();
 
-    tiles
+    let sorted: Vec<(Vec<&(i64, i64)>, i64)> = tiles
         .iter()
         .combinations(2)
-        .filter(|v| {
-            let (x1, y1) = (v[0].0, v[0].1);
-            let (x2, y2) = (v[1].0, v[1].1);
-            // rectangle for these two points
-            [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
-                .iter()
-                .all(|p| is_inside_polygon(&tiles, p))
-        })
         .map(|v| {
             let (x1, y1) = v[0];
             let (x2, y2) = v[1];
             let h = (y2 - y1).abs() + 1;
             let w = (x2 - x1).abs() + 1;
-            w * h
+            (v, w * h)
         })
-        .max()
+        .sorted_by(|a, b| b.1.cmp(&a.1))
+        .collect();
+
+    for (v, a) in sorted {
+        let (x1, y1) = (v[0].0, v[0].1);
+        let (x2, y2) = (v[1].0, v[1].1);
+
+        println!("Rect {:?} {:?}", (x1, y1), (x2, y2));
+
+        if intersects_line(&tiles, (x1, y1), (x2, y1))
+            || intersects_line(&tiles, (x2, y1), (x2, y2))
+            || intersects_line(&tiles, (x2, y2), (x1, y2))
+            || intersects_line(&tiles, (x1, y2), (x1, y1))
+        {
+            continue;
+        }
+        return Some(a);
+    }
+    None
 }
 
 #[cfg(test)]
