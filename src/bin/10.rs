@@ -1,6 +1,5 @@
-use std::u64::MAX;
-
 use fxhash::FxHashMap;
+use itertools::Itertools;
 use nom::{
     IResult, Parser,
     bytes::complete::tag,
@@ -89,57 +88,50 @@ pub fn part_two(input: &str) -> Option<u64> {
     Some(total)
 }
 
-fn apply_button(button: &[u64], state: &Vec<u64>, num: u64) -> Vec<u64> {
+fn apply_buttons(buttons: &[&Vec<u64>], state: &Vec<u64>) -> Vec<u64> {
     let mut result = state.clone();
-    for i in button {
-        result[*i as usize] += num;
+    for button in buttons {
+        for i in *button {
+            result[*i as usize] += 1;
+        }
     }
     result
 }
 
-fn calculate_max_presses(button: &Vec<u64>, state: &[u64], joltage_requirements: &[u64]) -> u64 {
-    button
-        .iter()
-        .map(|i| {
-            let idx = *i as usize;
-            joltage_requirements[idx] - state[idx]
-        })
-        .min()
-        .unwrap()
-}
-
 fn calculate_min_joltage_presses(joltage_requirements: &Vec<u64>, buttons: &[Vec<u64>]) -> u64 {
-    let state = vec![0; joltage_requirements.len()];
-
-    let mut stack = Vec::new();
-    stack.push((state, buttons, 0));
-
-    let mut best = MAX;
-
-    while let Some((cur_state, cur_buttons, cur_presses)) = stack.pop() {
-        if let Some(button) = cur_buttons.first() {
-            let max_presses = calculate_max_presses(button, &cur_state, joltage_requirements);
-            for i in 0..=max_presses {
-                // TODO: do I need to iterate? Does reducing by one help solve a fail here or is there a smarter way? Try iterating first see how fast it is
-
-                let amount = max_presses - i;
-                let new_presses = cur_presses + amount;
-                if new_presses > best {
-                    println!("Found solution {new_presses}");
-                    continue;
+    let init_state = vec![0; joltage_requirements.len()];
+    let mut combos: FxHashMap<Vec<u64>, Vec<&Vec<u64>>> = FxHashMap::default();
+    for i in 1..=buttons.len() {
+        for combo in buttons.iter().combinations(i) {
+            let result = apply_buttons(&combo, &init_state);
+            if let Some(c) = combos.get(&result) {
+                if c.len() > combo.len() {
+                    println!("inserting shorter combo");
+                    combos.insert(result, combo);
                 }
-                let new_state = apply_button(button, &cur_state, amount);
-                if new_state == *joltage_requirements {
-                    best = new_presses;
-                }
-                if new_state < *joltage_requirements {
-                    stack.push((new_state, &cur_buttons[1..], new_presses));
-                }
+            } else {
+                combos.insert(result, combo);
             }
         }
     }
 
-    best
+    let max_presses = *joltage_requirements.iter().max().unwrap();
+
+    for i in 1..=max_presses {
+        for (result, combo) in &combos {
+            if result
+                .iter()
+                .zip(joltage_requirements)
+                .all(|(&r, &j)| r * i == j)
+            {
+                // TODO check smaller?
+                println!("Success: {:?} {}", combo, i);
+                return i * combo.len() as u64;
+            }
+        }
+    }
+
+    todo!();
 }
 
 #[cfg(test)]
