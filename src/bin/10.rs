@@ -1,3 +1,5 @@
+use std::u64::MAX;
+
 use fxhash::FxHashMap;
 use nom::{
     IResult, Parser,
@@ -80,99 +82,63 @@ pub fn part_two(input: &str) -> Option<u64> {
 
     let mut total = 0;
     for (_, wires, joltage_requirements) in machines {
-        total += calculate_min_joltage_presses(&joltage_requirements, &wires)?;
+        println!("Testing {:?}", joltage_requirements);
+        total += calculate_min_joltage_presses(&joltage_requirements, &wires);
     }
 
     Some(total)
 }
 
-fn calculate_min_joltage_presses(
-    joltage_requirements: &Vec<u64>,
-    buttons: &[Vec<u64>],
-) -> Option<u64> {
-    let button_max_count = buttons
-        .iter()
-        .map(|b| {
-            let count = b
-                .iter()
-                .map(|&i| joltage_requirements[i as usize])
-                .min()
-                .unwrap();
-            (b, count)
-        })
-        .collect::<Vec<_>>();
-
-    let projected = button_max_count
-        .iter()
-        .fold(1, |acc, (_, count)| acc * count);
-
-    println!(
-        "Projected min presses: {} for {:?}",
-        projected, joltage_requirements
-    );
-
-    let result = vec![0; joltage_requirements.len()];
-    let mut count = 0;
-    let r = try_button_ranges(
-        &button_max_count,
-        &joltage_requirements,
-        0,
-        &result,
-        &mut count,
-    );
-    println!("counted {} calls", count);
-    r
+fn apply_button(button: &[u64], state: &Vec<u64>, num: u64) -> Vec<u64> {
+    let mut result = state.clone();
+    for i in button {
+        result[*i as usize] += num;
+    }
+    result
 }
 
-fn try_button_ranges(
-    button_ranges: &[(&Vec<u64>, u64)],
-    joltage_requirements: &Vec<u64>,
-    presses: u64,
-    result: &[u64],
-    c: &mut u64,
-) -> Option<u64> {
-    let mut best = None;
+fn calculate_max_presses(button: &Vec<u64>, state: &[u64], joltage_requirements: &[u64]) -> u64 {
+    button
+        .iter()
+        .map(|i| {
+            let idx = *i as usize;
+            joltage_requirements[idx] - state[idx]
+        })
+        .min()
+        .unwrap()
+}
 
-    let &(b, count) = button_ranges.first()?;
-    for i in 0..=count {
-        *c += 1;
-        // println!(
-        //     "Trying button range {:?} with count {} on result {:?} ({i})",
-        //     b, count, result
-        // );
-        let mut new_result = Vec::from(result);
-        for idx in b {
-            let idx = *idx as usize;
-            new_result[idx] += i;
-            if new_result[idx] > joltage_requirements[idx] {
-                // println!("Too high at index {}: {}", idx, new_result[idx]);
-                return best;
-            }
-        }
-        let new_presses = presses + i;
+fn calculate_min_joltage_presses(joltage_requirements: &Vec<u64>, buttons: &[Vec<u64>]) -> u64 {
+    let state = vec![0; joltage_requirements.len()];
 
-        if new_result == *joltage_requirements {
-            // println!(
-            // "Matched with presses: {} on {:?}",
-            // new_presses, joltage_requirements
-            // );
-            if new_presses < best.unwrap_or(u64::MAX) {
-                best = Some(new_presses);
-            }
-        }
+    let mut stack = Vec::new();
+    stack.push((state, buttons, 0));
 
-        if let Some(r) = try_button_ranges(
-            &button_ranges[1..],
-            joltage_requirements,
-            new_presses,
-            &new_result,
-            c,
-        ) {
-            if r < best.unwrap_or(u64::MAX) {
-                best = Some(r);
+    let mut best = MAX;
+
+    while let Some((cur_state, cur_buttons, cur_presses)) = stack.pop() {
+        if let Some(button) = cur_buttons.first() {
+            let max_presses = calculate_max_presses(button, &cur_state, joltage_requirements);
+            for i in 0..=max_presses {
+                // TODO: do I need to iterate? Does reducing by one help solve a fail here or is there a smarter way? Try iterating first see how fast it is
+
+                let amount = max_presses - i;
+                let new_presses = cur_presses + amount;
+                if new_presses > best {
+                    println!("Found solution {new_presses}");
+                    continue;
+                }
+                let new_state = apply_button(button, &cur_state, amount);
+                if new_state == *joltage_requirements {
+                    best = new_presses;
+                }
+                if new_state < *joltage_requirements {
+                    stack.push((new_state, &cur_buttons[1..], new_presses));
+                }
             }
         }
     }
+
     best
 }
 
@@ -205,7 +171,7 @@ mod tests {
                     vec![1, 2, 3, 4]
                 ]
             ),
-            Some(12)
+            12
         );
     }
 }
