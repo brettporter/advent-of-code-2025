@@ -100,38 +100,58 @@ fn apply_buttons(buttons: &[&Vec<u64>], state: &Vec<u64>) -> Vec<u64> {
 
 fn calculate_min_joltage_presses(joltage_requirements: &Vec<u64>, buttons: &[Vec<u64>]) -> u64 {
     let init_state = vec![0; joltage_requirements.len()];
-    let mut combos: FxHashMap<Vec<u64>, Vec<&Vec<u64>>> = FxHashMap::default();
+    let mut combos = Vec::new();
+    let mut results = FxHashMap::default();
     for i in 1..=buttons.len() {
         for combo in buttons.iter().combinations(i) {
             let result = apply_buttons(&combo, &init_state);
-            if let Some(c) = combos.get(&result) {
-                if c.len() > combo.len() {
-                    println!("inserting shorter combo");
-                    combos.insert(result, combo);
+            let num_presses = combo.len() as u64;
+            if result == *joltage_requirements {
+                println!("found first pass");
+                return num_presses;
+            }
+
+            if let Some(existing) = results.get(&result) {
+                if *existing <= num_presses {
+                    continue;
                 }
-            } else {
-                combos.insert(result, combo);
             }
+
+            combos.push(combo);
+            results.insert(result, num_presses);
         }
     }
 
-    let max_presses = *joltage_requirements.iter().max().unwrap();
+    loop {
+        println!(
+            "Next round of combinations - current length {}",
+            results.len()
+        );
+        let mut best = None;
+        let prev_results = results.clone();
+        println!("generated combos");
+        for (r, p) in prev_results {
+            for c in &combos {
+                let new_result = apply_buttons(&c, &r);
+                let new_num_presses = c.len() as u64 + p;
+                if new_result == *joltage_requirements {
+                    best = Some(best.unwrap_or(u64::MAX).min(new_num_presses));
+                    assert!(best.is_some());
+                } else if new_result < *joltage_requirements {
+                    if let Some(existing) = results.get(&new_result) {
+                        if *existing <= new_num_presses {
+                            continue;
+                        }
+                    }
 
-    for i in 1..=max_presses {
-        for (result, combo) in &combos {
-            if result
-                .iter()
-                .zip(joltage_requirements)
-                .all(|(&r, &j)| r * i == j)
-            {
-                // TODO check smaller?
-                println!("Success: {:?} {}", combo, i);
-                return i * combo.len() as u64;
+                    results.insert(new_result, new_num_presses);
+                }
             }
         }
+        if let Some(r) = best {
+            return r;
+        }
     }
-
-    todo!();
 }
 
 #[cfg(test)]

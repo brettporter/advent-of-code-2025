@@ -14,6 +14,9 @@ doctest = false
 inherits = "release"
 debug = 1
 
+[profile.release]
+debug = true
+
 [features]
 dhat-heap = ["dhat"]
 today = ["chrono"]
