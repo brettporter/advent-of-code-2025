@@ -37,18 +37,22 @@ pub fn part_one(input: &str) -> Option<u64> {
             .enumerate()
             .fold(0usize, |acc, (i, &e)| acc + if e { 1 << i } else { 0 });
 
-        let buttons: Vec<usize> = wires
-            .iter()
-            .map(|w| w.iter().fold(0, |acc, c| acc + (1 << c)))
-            .collect();
-
-        total += calculate_min_presses(target_state, &buttons);
+        total += calculate_min_presses(target_state, &wires, 1)
+            .first()
+            .unwrap();
     }
 
     Some(total)
 }
 
-fn calculate_min_presses(target_state: usize, buttons: &[usize]) -> u64 {
+fn calculate_min_presses(target_state: usize, wires: &[Vec<u64>], iterations: usize) -> Vec<u64> {
+    let mut iteration_results = Vec::new();
+
+    let buttons: Vec<usize> = wires
+        .iter()
+        .map(|w| w.iter().fold(0, |acc, c| acc + (1 << c)))
+        .collect();
+
     // Not supporting one button press here
     let mut sequences = FxHashMap::from_iter(buttons.iter().map(|&v| (v, 1)));
     loop {
@@ -69,7 +73,10 @@ fn calculate_min_presses(target_state: usize, buttons: &[usize]) -> u64 {
             }
         }
         if let Some(r) = new_sequences.get(&target_state) {
-            return *r;
+            iteration_results.push(*r);
+            if iteration_results.len() == iterations {
+                return iteration_results;
+            }
         }
 
         sequences = new_sequences;
@@ -99,59 +106,18 @@ fn apply_buttons(buttons: &[&Vec<u64>], state: &Vec<u64>) -> Vec<u64> {
 }
 
 fn calculate_min_joltage_presses(joltage_requirements: &Vec<u64>, buttons: &[Vec<u64>]) -> u64 {
-    let init_state = vec![0; joltage_requirements.len()];
-    let mut combos = Vec::new();
-    let mut results = FxHashMap::default();
-    for i in 1..=buttons.len() {
-        for combo in buttons.iter().combinations(i) {
-            let result = apply_buttons(&combo, &init_state);
-            let num_presses = combo.len() as u64;
-            if result == *joltage_requirements {
-                println!("found first pass");
-                return num_presses;
-            }
+    let target_state = joltage_requirements
+        .iter()
+        .enumerate()
+        .fold(0usize, |acc, (i, &e)| acc + ((e as usize % 2) << i));
 
-            if let Some(existing) = results.get(&result) {
-                if *existing <= num_presses {
-                    continue;
-                }
-            }
+    let cycles = calculate_min_presses(target_state, buttons, 2);
 
-            combos.push(combo);
-            results.insert(result, num_presses);
-        }
-    }
+    println!("{:?} cycles for {:?}", cycles, joltage_requirements);
 
-    loop {
-        println!(
-            "Next round of combinations - current length {}",
-            results.len()
-        );
-        let mut best = None;
-        let prev_results = results.clone();
-        println!("generated combos");
-        for (r, p) in prev_results {
-            for c in &combos {
-                let new_result = apply_buttons(&c, &r);
-                let new_num_presses = c.len() as u64 + p;
-                if new_result == *joltage_requirements {
-                    best = Some(best.unwrap_or(u64::MAX).min(new_num_presses));
-                    assert!(best.is_some());
-                } else if new_result < *joltage_requirements {
-                    if let Some(existing) = results.get(&new_result) {
-                        if *existing <= new_num_presses {
-                            continue;
-                        }
-                    }
+    // TODO: remove iterations if alwats the same
 
-                    results.insert(new_result, new_num_presses);
-                }
-            }
-        }
-        if let Some(r) = best {
-            return r;
-        }
-    }
+    todo!()
 }
 
 #[cfg(test)]
